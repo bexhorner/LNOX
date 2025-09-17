@@ -260,7 +260,7 @@ def get_hr_prodrate(df_24h, df_sf, lon_res=0.625, lat_res=0.5):
     # ---- Apply scaling factors ----
     df_out["lnox_hr"] = df_out["lnox"] * df_out["sf"]
 
-    return df_out[["lon","lat","hour","lnox_hr"]]
+    return df_out[["lon","lat","hour","lnox_hr","sf"]]
 #%%
 
 if __name__ == "__main__":
@@ -318,16 +318,31 @@ if __name__ == "__main__":
     full_all = extend_and_fill_sf(df_sf_all)
 
     result_trmm = get_hr_prodrate(prod_lnox_trmm,full_trmm)
-    result_iss = get_hr_prodrate(prod_lnox_all,full_all)
+    result_iss = get_hr_prodrate(prod_lnox_iss,full_iss)
     result_all = get_hr_prodrate(prod_lnox_all,full_all)
+
+    result_trmm = result_iss[result_trmm['lat'] < 90.0]
+    result_iss = result_iss[result_iss['lat'] < 90.0]
+    result_all = result_all[result_all['lat'] < 90.0]
 
     out_time = np.arange(0,24,1)
     zdim = len(out_time)
 
     out_lon = np.arange(-180, 180, 0.625) 
-    out_lat = np.arange(-90, 90+0.5, 0.5)
+    out_lat = np.arange(-90, 90, 0.5)
     xdim = len(out_lon)
     ydim = len(out_lat)
+
+    arr = (result_iss['lnox_hr']*av_no).to_numpy()
+    print("prod_lnox_iss length:", arr.size)
+    print("expected length (xdim*ydim*zdim):", xdim * ydim * zdim)
+    print("xdim, ydim, zdim:", xdim, ydim, zdim)
+    print("unique lon count:", result_iss['lon'].nunique())
+    print("unique lat count:", result_iss['lat'].nunique())
+    print("unique time count:", result_iss['hour'].nunique())
+    print("min/max lon:", result_iss['lon'].min(), result_iss['lon'].max())
+    print("min/max lat:", result_iss['lat'].min(), result_iss['lat'].max())
+    print("min/max time:", result_iss['hour'].min(), result_iss['hour'].max())
 
     #Output 2D NetCDF
     ncout = Dataset('test_data.nc',mode='w',format="NETCDF4")
@@ -410,28 +425,28 @@ if __name__ == "__main__":
     lnox_prod_iss = ncout.createVariable('PROD_LNOX_ISS', np.float32, ('time', 'lat', 'lon'), chunksizes=(zdim,ydim,xdim))
     lnox_prod_iss.units = '1'
     lnox_prod_iss.long_name = 'Diurnal production rate of lightning NOx from ISS'
-    lnox_prod_iss[:] = (np.array(result_iss)*av_no).reshape(zdim,ydim,xdim)
+    lnox_prod_iss[:] = (np.array(result_iss['lnox_hr'])*av_no).reshape(zdim,ydim,xdim)
     #lnox production from TRMM
     lnox_prod_trmm = ncout.createVariable('PROD_LNOX_TRMM', np.float32, ('time', 'lat', 'lon'), chunksizes=(zdim,ydim,xdim))
     lnox_prod_trmm.units = '1'
     lnox_prod_trmm.long_name = 'Diurnal production rate of lightning NOx from TRMM'
-    lnox_prod_trmm[:] = (np.array(result_trmm)*av_no).reshape(zdim,ydim,xdim)
+    lnox_prod_trmm[:] = (np.array(result_trmm['lnox_hr'])*av_no).reshape(zdim,ydim,xdim)
     #lnox production from both
     lnox_prod_all = ncout.createVariable('PROD_LNOX_ALL', np.float32, ('time', 'lat', 'lon'), chunksizes=(zdim,ydim,xdim))
     lnox_prod_all.units = '1'
     lnox_prod_all.long_name = 'Diurnal production rate of lightning NOx from both TRMM and ISS'
-    lnox_prod_all[:] = (np.array(result_all)*av_no).reshape(zdim,ydim,xdim)
+    lnox_prod_all[:] = (np.array(result_all['lnox_hr'])*av_no).reshape(zdim,ydim,xdim)
     # #scaling factors
     lnox_sf_all = ncout.createVariable('SCALE_FACTOR_ALL', np.float32, ('time', 'lat', 'lon'), chunksizes=(zdim,ydim,xdim))
     lnox_sf_all.units = '1'
     lnox_sf_all.long_name = 'Diurnal scaling factors using TRMM and ISS'
-    lnox_sf_all[:] = ((full_all['lnox']).to_numpy()).reshape(zdim,ydim,xdim)
+    lnox_sf_all[:] = ((result_all['sf']).to_numpy()).reshape(zdim,ydim,xdim)
     lnox_sf_iss = ncout.createVariable('SCALE_FACTOR_ISS', np.float32, ('time', 'lat', 'lon'), chunksizes=(zdim,ydim,xdim))
     lnox_sf_iss.units = '1'
     lnox_sf_iss.long_name = 'Diurnal scaling factors using ISS'
-    lnox_sf_iss[:] = ((full_iss['lnox']).to_numpy()).reshape(zdim,ydim,xdim)
+    lnox_sf_iss[:] = ((result_iss['sf']).to_numpy()).reshape(zdim,ydim,xdim)
     lnox_sf_trmm = ncout.createVariable('SCALE_FACTOR_TRMM', np.float32, ('time', 'lat', 'lon'), chunksizes=(zdim,ydim,xdim))
     lnox_sf_trmm.units = '1'
     lnox_sf_trmm.long_name = 'Diurnal scaling factors using TRMM'
-    lnox_sf_trmm[:] = ((full_trmm['lnox']).to_numpy()).reshape(zdim,ydim,xdim)
+    lnox_sf_trmm[:] = ((result_trmm['sf']).to_numpy()).reshape(zdim,ydim,xdim)
     ncout.close()
