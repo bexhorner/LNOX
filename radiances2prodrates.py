@@ -1,5 +1,6 @@
 #%%
 # Import packages
+%matplotlib inline
 import numpy as np
 import pandas as pd
 import sys
@@ -312,6 +313,10 @@ if __name__ == "__main__":
     prod_lnox_iss = get_lnox_prod(lis_radiances_iss_int, scale_factor_iss)
     prod_lnox_all = get_lnox_prod(lis_radiances_all_int, scale_factor_all)
 
+    prod_lnox_trmm = prod_lnox_trmm.sort_values(["lat", "lon"])
+    prod_lnox_iss = prod_lnox_iss.sort_values(["lat", "lon"])
+    prod_lnox_all = prod_lnox_all.sort_values(["lat", "lon"])
+
     #Get filled hourly scaling factors
     full_iss = extend_and_fill_sf(df_sf_iss)
     full_trmm = extend_and_fill_sf(df_sf_trmm)
@@ -325,6 +330,10 @@ if __name__ == "__main__":
     result_iss = result_iss[result_iss['lat'] < 90.0]
     result_all = result_all[result_all['lat'] < 90.0]
 
+    result_trmm = result_trmm.sort_values(["hour", "lat", "lon"])
+    result_iss = result_iss.sort_values(["hour", "lat", "lon"])
+    result_all = result_all.sort_values(["hour", "lat", "lon"])
+
     out_time = np.arange(0,24,1)
     zdim = len(out_time)
 
@@ -332,17 +341,6 @@ if __name__ == "__main__":
     out_lat = np.arange(-90, 90, 0.5)
     xdim = len(out_lon)
     ydim = len(out_lat)
-
-    arr = (result_iss['lnox_hr']*av_no).to_numpy()
-    print("prod_lnox_iss length:", arr.size)
-    print("expected length (xdim*ydim*zdim):", xdim * ydim * zdim)
-    print("xdim, ydim, zdim:", xdim, ydim, zdim)
-    print("unique lon count:", result_iss['lon'].nunique())
-    print("unique lat count:", result_iss['lat'].nunique())
-    print("unique time count:", result_iss['hour'].nunique())
-    print("min/max lon:", result_iss['lon'].min(), result_iss['lon'].max())
-    print("min/max lat:", result_iss['lat'].min(), result_iss['lat'].max())
-    print("min/max time:", result_iss['hour'].min(), result_iss['hour'].max())
 
     #Output 2D NetCDF
     ncout = Dataset('test_data.nc',mode='w',format="NETCDF4")
